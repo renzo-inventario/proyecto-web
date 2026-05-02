@@ -124,6 +124,7 @@
         return String(valor);
     }
 
+    // Función para cargar fotos con CACHE BUSTER (evita bloqueos en búsquedas sucesivas)
     function cargarFotos(sku, container) {
         container.innerHTML = '<div style="font-size: 12px; color: #999;">⏳ Buscando fotos...</div>';
         
@@ -138,7 +139,7 @@
             if (fotosUrls.length > 0) {
                 let html = '';
                 for (let url of fotosUrls) {
-                    html += `<img src="${url}" style="width: 80px; height: 80px; object-fit: cover; margin: 5px; border: 1px solid #ddd; border-radius: 4px;">`;
+                    html += `<img src="${url}" style="width: 80px; height: 80px; object-fit: cover; margin: 5px; border: 1px solid #ddd; border-radius: 4px; background-color: #f0f0f0;">`;
                 }
                 container.innerHTML = html;
             } else {
@@ -148,7 +149,9 @@
         
         for (let i = 1; i <= 9; i++) {
             const numero = i.toString().padStart(2, '0');
-            const url = `https://www.atkits.com/assets/images/gallery/OT/${sku}/${sku}_${numero}.png`;
+            // Añadir un parámetro único para evitar caché y bloqueos del servidor
+            const cacheBuster = Date.now() + Math.random();
+            const url = `https://www.atkits.com/assets/images/gallery/OT/${sku}/${sku}_${numero}.png?nocache=${cacheBuster}`;
             
             const img = new Image();
             let respondido = false;
@@ -165,7 +168,8 @@
                 if (!respondido) {
                     respondido = true;
                     clearTimeout(timeoutId);
-                    fotosUrls.push(url);
+                    // Guardamos la URL limpia (sin el parámetro)
+                    fotosUrls.push(`https://www.atkits.com/assets/images/gallery/OT/${sku}/${sku}_${numero}.png`);
                     peticionesCompletadas++;
                     if (peticionesCompletadas === 9) finalizar();
                 }
