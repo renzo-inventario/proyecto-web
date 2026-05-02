@@ -124,34 +124,27 @@
         return String(valor);
     }
 
-    // Función para cargar fotos con CACHE BUSTER (evita bloqueos en búsquedas sucesivas)
+    // Función para cargar fotos usando proxy (evita bloqueos CORS)
     function cargarFotos(sku, container) {
         container.innerHTML = '<div style="font-size: 12px; color: #999;">⏳ Buscando fotos...</div>';
         
-        let fotosUrls = [];
-        let peticionesCompletadas = 0;
-        let finalizado = false;
+        let fotosEncontradas = 0;
+        let checksCompletados = 0;
         
-        function finalizar() {
-            if (finalizado) return;
-            finalizado = true;
-            
-            if (fotosUrls.length > 0) {
-                let html = '';
-                for (let url of fotosUrls) {
-                    html += `<img src="${url}" style="width: 80px; height: 80px; object-fit: cover; margin: 5px; border: 1px solid #ddd; border-radius: 4px; background-color: #f0f0f0;">`;
+        function verificarFinal() {
+            checksCompletados++;
+            if (checksCompletados === 9) {
+                if (fotosEncontradas === 0) {
+                    container.innerHTML = '<div style="font-size: 12px; color: #999;">📁 No hay fotos disponibles para ' + sku + '</div>';
                 }
-                container.innerHTML = html;
-            } else {
-                container.innerHTML = '<div style="font-size: 12px; color: #999;">📁 No hay fotos disponibles para ' + sku + '</div>';
             }
         }
         
         for (let i = 1; i <= 9; i++) {
             const numero = i.toString().padStart(2, '0');
-            // Añadir un parámetro único para evitar caché y bloqueos del servidor
-            const cacheBuster = Date.now() + Math.random();
-            const url = `https://www.atkits.com/assets/images/gallery/OT/${sku}/${sku}_${numero}.png?nocache=${cacheBuster}`;
+            const urlOriginal = `https://www.atkits.com/assets/images/gallery/OT/${sku}/${sku}_${numero}.png`;
+            // Usar proxy de CORS-Anywhere para evitar el bloqueo
+            const urlProxy = `https://cors-anywhere.herokuapp.com/${urlOriginal}`;
             
             const img = new Image();
             let respondido = false;
@@ -159,19 +152,29 @@
             const timeoutId = setTimeout(() => {
                 if (!respondido) {
                     respondido = true;
-                    peticionesCompletadas++;
-                    if (peticionesCompletadas === 9) finalizar();
+                    verificarFinal();
                 }
-            }, 3000);
+            }, 2000);
             
             img.onload = function() {
                 if (!respondido) {
                     respondido = true;
                     clearTimeout(timeoutId);
-                    // Guardamos la URL limpia (sin el parámetro)
-                    fotosUrls.push(`https://www.atkits.com/assets/images/gallery/OT/${sku}/${sku}_${numero}.png`);
-                    peticionesCompletadas++;
-                    if (peticionesCompletadas === 9) finalizar();
+                    fotosEncontradas++;
+                    // Si es la primera foto, mostramos la galería
+                    if (fotosEncontradas === 1) {
+                        container.innerHTML = '';
+                    }
+                    const imgElement = document.createElement('img');
+                    imgElement.src = urlOriginal;
+                    imgElement.style.width = '80px';
+                    imgElement.style.height = '80px';
+                    imgElement.style.objectFit = 'cover';
+                    imgElement.style.margin = '5px';
+                    imgElement.style.border = '1px solid #ddd';
+                    imgElement.style.borderRadius = '4px';
+                    container.appendChild(imgElement);
+                    verificarFinal();
                 }
             };
             
@@ -179,17 +182,12 @@
                 if (!respondido) {
                     respondido = true;
                     clearTimeout(timeoutId);
-                    peticionesCompletadas++;
-                    if (peticionesCompletadas === 9) finalizar();
+                    verificarFinal();
                 }
             };
             
-            img.src = url;
+            img.src = urlProxy;
         }
-        
-        setTimeout(() => {
-            finalizar();
-        }, 5000);
     }
 
     function mostrarProductos(productosFiltrados) {
@@ -219,7 +217,6 @@
         grid.innerHTML = html;
         document.getElementById('results').innerHTML = `🔍 ${productosFiltrados.length} resultados encontrados`;
         
-        // Esperar a que el DOM se actualice antes de cargar las fotos
         setTimeout(() => {
             for (let producto of productosFiltrados) {
                 const sku = aString(producto.SKU || producto.sku || producto.Name || '');
@@ -237,7 +234,12 @@
 
     function buscar(termino) {
         if (termino === '') {
-            mostrarProductos(productos);
+            mostrarProductos([]);
+            return;
+        }
+        
+        if (productos.length === 0) {
+            document.getElementById('results').innerHTML = '⏳ Cargando productos...';
             return;
         }
         
