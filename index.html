@@ -119,142 +119,146 @@
     <script>
     let productos = [];
 
-// Función para convertir a string seguro
-function aString(valor) {
-    if (valor === null || valor === undefined) return '';
-    return String(valor);
-}
+    // Función para convertir a string seguro
+    function aString(valor) {
+        if (valor === null || valor === undefined) return '';
+        return String(valor);
+    }
 
-// Función para mostrar productos
-function mostrarProductos(productosFiltrados) {
-    const grid = document.getElementById('productGrid');
-    
-    if (!productosFiltrados || productosFiltrados.length === 0) {
-        grid.innerHTML = '<div class="no-results">😕 No se encontraron productos</div>';
-        document.getElementById('results').innerHTML = `🔍 0 resultados`;
-        return;
-    }
-    
-    let html = '';
-    for (let producto of productosFiltrados) {
-        const sku = aString(producto.SKU || producto.sku || producto.Name || '');
-        const descripcion = aString(producto.Description || producto.description || '');
+    // Función para cargar fotos desde atkits.com (VERSIÓN CORREGIDA)
+    function cargarFotos(sku, container) {
+        // Limpiar el contenedor antes de empezar
+        container.innerHTML = '<div style="font-size: 12px; color: #999;">⏳ Buscando fotos...</div>';
         
-        html += `
-            <div class="product-card">
-                <div class="product-sku">🔖 SKU: ${sku}</div>
-                <div class="product-description">📝 ${descripcion || 'Sin descripción'}</div>
-                <div class="product-photos" id="fotos-${sku.replace(/[^a-zA-Z0-9]/g, '')}"></div>
-            </div>
-        `;
-    }
-    
-    grid.innerHTML = html;
-    document.getElementById('results').innerHTML = `🔍 ${productosFiltrados.length} resultados encontrados`;
-    
-    // Cargar fotos después de mostrar las tarjetas
-    for (let producto of productosFiltrados) {
-        const sku = aString(producto.SKU || producto.sku || producto.Name || '');
-        const idFoto = `fotos-${sku.replace(/[^a-zA-Z0-9]/g, '')}`;
-        const container = document.getElementById(idFoto);
-        if (container) {
-            cargarFotos(sku, container);
+        let fotosEncontradas = 0;
+        let verificarCompletado = 0;
+        const fotosUrls = [];
+        
+        // Probar hasta 9 fotos (_01 a _09)
+        for (let i = 1; i <= 9; i++) {
+            const numero = i.toString().padStart(2, '0');
+            const url = `https://www.atkits.com/assets/images/gallery/OT/${sku}/${sku}_${numero}.png`;
+            
+            const img = new Image();
+            img.onload = function() {
+                fotosEncontradas++;
+                fotosUrls.push(url);
+                verificarCompletado++;
+                actualizarGaleria();
+            };
+            img.onerror = function() {
+                verificarCompletado++;
+                actualizarGaleria();
+            };
+            img.src = url;
+        }
+        
+        function actualizarGaleria() {
+            // Si ya terminamos de probar todas las 9 fotos
+            if (verificarCompletado === 9) {
+                if (fotosUrls.length > 0) {
+                    // Mostrar las fotos encontradas
+                    let html = '';
+                    for (let url of fotosUrls) {
+                        html += `<img src="${url}" style="width: 80px; height: 80px; object-fit: cover; margin: 5px; border: 1px solid #ddd; border-radius: 4px;">`;
+                    }
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div style="font-size: 12px; color: #999;">📁 No hay fotos disponibles para ' + sku + '</div>';
+                }
+            }
         }
     }
-}
 
-// Función para cargar fotos desde atkits.com
-function cargarFotos(sku, container) {
-    container.innerHTML = '<div style="font-size: 12px; color: #999;">⏳ Cargando fotos...</div>';
-    
-    let imagenesEncontradas = 0;
-    const fotosEncontradas = [];
-    
-    for (let i = 1; i <= 9; i++) {
-        const numero = i.toString().padStart(2, '0');
-        const url = `https://www.atkits.com/assets/images/gallery/OT/${sku}/${sku}_${numero}.png`;
+    // Función para mostrar productos
+    function mostrarProductos(productosFiltrados) {
+        const grid = document.getElementById('productGrid');
         
-        const img = new Image();
-        img.onload = function() {
-            imagenesEncontradas++;
-            fotosEncontradas.push(url);
-            actualizarGaleria();
-        };
-        img.onerror = function() {};
-        img.src = url;
-    }
-    
-    function actualizarGaleria() {
-        if (fotosEncontradas.length === 0 && imagenesEncontradas === 0 && [...Array(9).keys()].every(i => true)) {
-            setTimeout(() => {
-                if (fotosEncontradas.length === 0) {
-                    container.innerHTML = '<div style="font-size: 12px; color: #999;">📁 Sin fotos disponibles para ' + sku + '</div>';
-                }
-            }, 1500);
+        if (!productosFiltrados || productosFiltrados.length === 0) {
+            grid.innerHTML = '<div class="no-results">😕 No se encontraron productos</div>';
+            document.getElementById('results').innerHTML = `🔍 0 resultados`;
             return;
         }
         
-        if (fotosEncontradas.length > 0) {
-            let html = '';
-            for (let url of fotosEncontradas) {
-                html += `<img src="${url}" style="width: 80px; height: 80px; object-fit: cover; margin: 5px; border: 1px solid #ddd; border-radius: 4px;">`;
+        let html = '';
+        for (let producto of productosFiltrados) {
+            const sku = aString(producto.SKU || producto.sku || producto.Name || '');
+            const descripcion = aString(producto.Description || producto.description || '');
+            
+            html += `
+                <div class="product-card">
+                    <div class="product-sku">🔖 SKU: ${sku}</div>
+                    <div class="product-description">📝 ${descripcion || 'Sin descripción'}</div>
+                    <div class="product-photos" id="fotos-${sku.replace(/[^a-zA-Z0-9]/g, '')}"></div>
+                </div>
+            `;
+        }
+        
+        grid.innerHTML = html;
+        document.getElementById('results').innerHTML = `🔍 ${productosFiltrados.length} resultados encontrados`;
+        
+        // Cargar fotos después de mostrar las tarjetas
+        for (let producto of productosFiltrados) {
+            const sku = aString(producto.SKU || producto.sku || producto.Name || '');
+            const idFoto = `fotos-${sku.replace(/[^a-zA-Z0-9]/g, '')}`;
+            const container = document.getElementById(idFoto);
+            if (container) {
+                cargarFotos(sku, container);
             }
-            container.innerHTML = html;
         }
     }
-}
 
-// Buscador con carga diferida y debounce
-const searchInput = document.getElementById('searchInput');
-let timeoutId = null;
+    // Buscador con carga diferida y debounce
+    const searchInput = document.getElementById('searchInput');
+    let timeoutId = null;
 
-function buscar(termino) {
-    if (termino === '') {
-        mostrarProductos(productos);
-        return;
-    }
-    
-    const filtrados = productos.filter(producto => {
-        const sku = aString(producto.SKU || producto.sku || producto.Name || '').toLowerCase();
-        const descripcion = aString(producto.Description || producto.description || '').toLowerCase();
-        return sku.includes(termino) || descripcion.includes(termino);
-    });
-    
-    mostrarProductos(filtrados);
-}
-
-function cargarYBuscar(termino) {
-    if (productos.length > 0) {
-        buscar(termino);
-        return;
-    }
-    
-    document.getElementById('results').innerHTML = '⏳ Cargando productos por primera vez...';
-    
-    fetch('datos.json')
-        .then(response => response.json())
-        .then(data => {
-            productos = data;
-            document.getElementById('results').innerHTML = `📦 ${productos.length} productos cargados`;
-            buscar(termino);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('productGrid').innerHTML = '<div class="no-results">❌ Error cargando datos.json</div>';
-        });
-}
-
-if (searchInput) {
-    searchInput.addEventListener('input', function(e) {
-        const termino = e.target.value.toLowerCase().trim();
+    function buscar(termino) {
+        if (termino === '') {
+            mostrarProductos(productos);
+            return;
+        }
         
-        // Esperar a que deje de escribir por 0.5 segundos
-        if (timeoutId) clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-            cargarYBuscar(termino);
-        }, 500);
-    });
-}
+        const filtrados = productos.filter(producto => {
+            const sku = aString(producto.SKU || producto.sku || producto.Name || '').toLowerCase();
+            const descripcion = aString(producto.Description || producto.description || '').toLowerCase();
+            return sku.includes(termino) || descripcion.includes(termino);
+        });
+        
+        mostrarProductos(filtrados);
+    }
+
+    function cargarYBuscar(termino) {
+        if (productos.length > 0) {
+            buscar(termino);
+            return;
+        }
+        
+        document.getElementById('results').innerHTML = '⏳ Cargando productos por primera vez...';
+        
+        fetch('datos.json')
+            .then(response => response.json())
+            .then(data => {
+                productos = data;
+                document.getElementById('results').innerHTML = `📦 ${productos.length} productos cargados`;
+                buscar(termino);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('productGrid').innerHTML = '<div class="no-results">❌ Error cargando datos.json</div>';
+            });
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            const termino = e.target.value.toLowerCase().trim();
+            
+            // Esperar a que deje de escribir por 0.5 segundos
+            if (timeoutId) clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                cargarYBuscar(termino);
+            }, 500);
+        });
+    }
     </script>
 </body>
 </html>
