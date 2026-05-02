@@ -24,8 +24,16 @@
         
         h1 {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
             color: #333;
+        }
+        
+        .ayuda {
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 30px;
+            font-style: italic;
         }
         
         .search-box {
@@ -107,6 +115,7 @@
 <body>
     <div class="container">
         <h1>🔍 ATK Products Catalog</h1>
+        <div class="ayuda">💡 Para ver las fotos de una nueva búsqueda, presiona <strong>F5</strong> o actualiza la página</div>
         
         <div class="search-box">
             <input type="text" id="searchInput" placeholder="Buscar por SKU o descripción...">
@@ -124,27 +133,31 @@
         return String(valor);
     }
 
-    // Función para cargar fotos usando proxy (evita bloqueos CORS)
     function cargarFotos(sku, container) {
         container.innerHTML = '<div style="font-size: 12px; color: #999;">⏳ Buscando fotos...</div>';
         
-        let fotosEncontradas = 0;
-        let checksCompletados = 0;
+        let fotosUrls = [];
+        let peticionesCompletadas = 0;
+        let finalizado = false;
         
-        function verificarFinal() {
-            checksCompletados++;
-            if (checksCompletados === 9) {
-                if (fotosEncontradas === 0) {
-                    container.innerHTML = '<div style="font-size: 12px; color: #999;">📁 No hay fotos disponibles para ' + sku + '</div>';
+        function finalizar() {
+            if (finalizado) return;
+            finalizado = true;
+            
+            if (fotosUrls.length > 0) {
+                let html = '';
+                for (let url of fotosUrls) {
+                    html += `<img src="${url}" style="width: 80px; height: 80px; object-fit: cover; margin: 5px; border: 1px solid #ddd; border-radius: 4px;">`;
                 }
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<div style="font-size: 12px; color: #999;">📁 No hay fotos disponibles para ' + sku + '</div>';
             }
         }
         
         for (let i = 1; i <= 9; i++) {
             const numero = i.toString().padStart(2, '0');
-            const urlOriginal = `https://www.atkits.com/assets/images/gallery/OT/${sku}/${sku}_${numero}.png`;
-            // Usar proxy de CORS-Anywhere para evitar el bloqueo
-            const urlProxy = `https://cors-anywhere.herokuapp.com/${urlOriginal}`;
+            const url = `https://www.atkits.com/assets/images/gallery/OT/${sku}/${sku}_${numero}.png`;
             
             const img = new Image();
             let respondido = false;
@@ -152,29 +165,18 @@
             const timeoutId = setTimeout(() => {
                 if (!respondido) {
                     respondido = true;
-                    verificarFinal();
+                    peticionesCompletadas++;
+                    if (peticionesCompletadas === 9) finalizar();
                 }
-            }, 2000);
+            }, 3000);
             
             img.onload = function() {
                 if (!respondido) {
                     respondido = true;
                     clearTimeout(timeoutId);
-                    fotosEncontradas++;
-                    // Si es la primera foto, mostramos la galería
-                    if (fotosEncontradas === 1) {
-                        container.innerHTML = '';
-                    }
-                    const imgElement = document.createElement('img');
-                    imgElement.src = urlOriginal;
-                    imgElement.style.width = '80px';
-                    imgElement.style.height = '80px';
-                    imgElement.style.objectFit = 'cover';
-                    imgElement.style.margin = '5px';
-                    imgElement.style.border = '1px solid #ddd';
-                    imgElement.style.borderRadius = '4px';
-                    container.appendChild(imgElement);
-                    verificarFinal();
+                    fotosUrls.push(url);
+                    peticionesCompletadas++;
+                    if (peticionesCompletadas === 9) finalizar();
                 }
             };
             
@@ -182,12 +184,17 @@
                 if (!respondido) {
                     respondido = true;
                     clearTimeout(timeoutId);
-                    verificarFinal();
+                    peticionesCompletadas++;
+                    if (peticionesCompletadas === 9) finalizar();
                 }
             };
             
-            img.src = urlProxy;
+            img.src = url;
         }
+        
+        setTimeout(() => {
+            finalizar();
+        }, 5000);
     }
 
     function mostrarProductos(productosFiltrados) {
