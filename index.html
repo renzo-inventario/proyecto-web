@@ -127,31 +127,75 @@
 
     // Función para cargar fotos desde atkits.com (VERSIÓN CORREGIDA)
     function cargarFotos(sku, container) {
-        // Limpiar el contenedor antes de empezar
-        container.innerHTML = '<div style="font-size: 12px; color: #999;">⏳ Buscando fotos...</div>';
+    // Limpiar el contenedor antes de empezar
+    container.innerHTML = '<div style="font-size: 12px; color: #999;">⏳ Buscando fotos...</div>';
+    
+    let fotosEncontradas = 0;
+    let peticionesCompletadas = 0;
+    let timeoutActivo = true;
+    const fotosUrls = [];
+    
+    // Función para finalizar (mostrar lo que se encontró)
+    function finalizar() {
+        if (!timeoutActivo) return;
+        timeoutActivo = false;
         
-        let fotosEncontradas = 0;
-        let verificarCompletado = 0;
-        const fotosUrls = [];
+        if (fotosUrls.length > 0) {
+            let html = '';
+            for (let url of fotosUrls) {
+                html += `<img src="${url}" style="width: 80px; height: 80px; object-fit: cover; margin: 5px; border: 1px solid #ddd; border-radius: 4px;">`;
+            }
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = '<div style="font-size: 12px; color: #999;">📁 No hay fotos disponibles para ' + sku + '</div>';
+        }
+    }
+    
+    // Probar hasta 9 fotos (_01 a _09)
+    for (let i = 1; i <= 9; i++) {
+        const numero = i.toString().padStart(2, '0');
+        const url = `https://www.atkits.com/assets/images/gallery/OT/${sku}/${sku}_${numero}.png`;
         
-        // Probar hasta 9 fotos (_01 a _09)
-        for (let i = 1; i <= 9; i++) {
-            const numero = i.toString().padStart(2, '0');
-            const url = `https://www.atkits.com/assets/images/gallery/OT/${sku}/${sku}_${numero}.png`;
-            
-            const img = new Image();
-            img.onload = function() {
+        const img = new Image();
+        let completado = false;
+        
+        // Timeout individual por cada foto (3 segundos)
+        const timeoutId = setTimeout(() => {
+            if (!completado) {
+                completado = true;
+                peticionesCompletadas++;
+                if (peticionesCompletadas === 9) finalizar();
+            }
+        }, 3000);
+        
+        img.onload = function() {
+            if (!completado) {
+                completado = true;
+                clearTimeout(timeoutId);
                 fotosEncontradas++;
                 fotosUrls.push(url);
-                verificarCompletado++;
-                actualizarGaleria();
-            };
-            img.onerror = function() {
-                verificarCompletado++;
-                actualizarGaleria();
-            };
-            img.src = url;
-        }
+                peticionesCompletadas++;
+                if (peticionesCompletadas === 9) finalizar();
+            }
+        };
+        
+        img.onerror = function() {
+            if (!completado) {
+                completado = true;
+                clearTimeout(timeoutId);
+                peticionesCompletadas++;
+                if (peticionesCompletadas === 9) finalizar();
+            }
+        };
+        
+        img.src = url;
+    }
+    
+    // Timeout general por si alguna petición nunca responde
+    setTimeout(() => {
+        finalizar();
+    }, 5000);
+}
         
         function actualizarGaleria() {
             // Si ya terminamos de probar todas las 9 fotos
